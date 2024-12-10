@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -79,7 +78,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        // 如果是存储权限请求
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
             boolean allGranted = true;
             for (int result : grantResults) {
@@ -89,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
             if (allGranted) {
-                loadLocalMusicData(); // 如果所有权限被授予
+                loadLocalMusicData(); // 如果权限被授予，加载数据
             } else {
                 Toast.makeText(this, "存储权限被拒绝，无法访问音乐文件", Toast.LENGTH_SHORT).show();
             }
@@ -99,8 +97,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void setEventListener() {
         adapter.setOnItemClickListener((view, position) -> {
             if (isServiceBound) {
-                musicService.playMusic(position); // 调用服务播放音乐
+                musicService.playMusic(position); // 播放音乐
                 updateSongInfo(position);
+                playIv.setImageResource(R.mipmap.stop); // 更新播放按钮图标
             }
         });
 
@@ -123,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void loadLocalMusicData() {
         ContentResolver resolver = getContentResolver();
-        Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI; // 使用外部内容 URI
+        Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI; // 外部内容 URI
         Cursor cursor = resolver.query(uri, null, null, null, null);
 
         if (cursor != null) {
@@ -131,9 +130,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String song = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.TITLE));
                 String singer = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST));
                 String path = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DATA));
+                long durationMillis = cursor.getLong(cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)); // 时长
+
+                // 转换为 mm:ss 格式
+                String duration = convertMillisToTimeFormat(durationMillis);
 
                 if (path != null) {
-                    LocalMusicBean bean = new LocalMusicBean(String.valueOf(mDatas.size() + 1), song, singer, "", "", path);
+                    LocalMusicBean bean = new LocalMusicBean(String.valueOf(mDatas.size() + 1), song, singer, "", duration, path);
                     mDatas.add(bean);
                 }
             }
@@ -144,8 +147,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         adapter.notifyDataSetChanged();
         if (isServiceBound) {
-            musicService.setMusicData(mDatas); // 通过服务设置音乐数据
+            musicService.setMusicData(mDatas); // 设置给音乐服务
         }
+    }
+
+    // 转换毫秒为 mm:ss 格式
+    private String convertMillisToTimeFormat(long millis) {
+        int minutes = (int) (millis / 1000) / 60;
+        int seconds = (int) (millis / 1000) % 60;
+        return String.format("%02d:%02d", minutes, seconds); // 格式化为 mm:ss
     }
 
     private void initView() {
@@ -182,19 +192,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.local_music_bottom_iv_last:
                 musicService.previousMusic(); // 上一首
                 updateSongInfo(musicService.getCurrentPlayPosition()); // 更新歌曲信息
+                playIv.setImageResource(R.mipmap.stop); // 更新播放按钮图标
                 break;
             case R.id.local_music_bottom_iv_play:
-                if (musicService.isPlaying()) { // 通过服务检查是否在播放
+                if (musicService.isPlaying()) {
                     musicService.pauseMusic(); // 暂停播放
-                    playIv.setImageResource(R.mipmap.play);
+                    playIv.setImageResource(R.mipmap.play); // 设置为播放图标
                 } else {
-                    musicService.playMusic(musicService.getCurrentPlayPosition()); // 播放
-                    playIv.setImageResource(R.mipmap.stop);
+                    musicService.playMusic(musicService.getCurrentPlayPosition()); // 播放当前音乐
+                    playIv.setImageResource(R.mipmap.stop); // 设置为停止图标
                 }
                 break;
             case R.id.local_music_bottom_iv_next:
                 musicService.nextMusic(); // 下一首
                 updateSongInfo(musicService.getCurrentPlayPosition()); // 更新歌曲信息
+                playIv.setImageResource(R.mipmap.stop); // 更新播放按钮图标
                 break;
         }
     }
