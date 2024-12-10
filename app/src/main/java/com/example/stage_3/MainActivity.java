@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             musicService = binder.getService();
             isServiceBound = true;
             musicService.setMusicData(mDatas); // 设置音乐数据
+            updateSongInfo(musicService.getCurrentPlayPosition()); // 更新当前音乐信息
         }
 
         @Override
@@ -59,19 +60,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initView();
+
         mDatas = new ArrayList<>();
         adapter = new LocalMusicAdapter(this, mDatas);
         musicRv.setAdapter(adapter);
         musicRv.setLayoutManager(new LinearLayoutManager(this));
 
         // 检查存储权限
+        checkStoragePermission();
+
+        setEventListener(); // 设置点击事件
+    }
+
+    private void checkStoragePermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_AUDIO}, REQUEST_STORAGE_PERMISSION);
         } else {
             loadLocalMusicData(); // 权限已授予，加载音乐数据
         }
-
-        setEventListener(); // 设置点击事件
     }
 
     @Override
@@ -79,14 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
-            boolean allGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-            if (allGranted) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 loadLocalMusicData(); // 如果权限被授予，加载数据
             } else {
                 Toast.makeText(this, "存储权限被拒绝，无法访问音乐文件", Toast.LENGTH_SHORT).show();
@@ -94,13 +93,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+//    private void setEventListener() {
+//        adapter.setOnItemClickListener((view, position) -> {
+//            if (isServiceBound) {
+//                musicService.playMusic(position); // 播放音乐
+//                updateSongInfo(position); // 更新歌曲信息
+//                playIv.setImageResource(R.mipmap.stop); // 更新播放按钮图标
+//            }
+//        });
+
     private void setEventListener() {
         adapter.setOnItemClickListener((view, position) -> {
-            if (isServiceBound) {
-                musicService.playMusic(position); // 播放音乐
-                updateSongInfo(position);
-                playIv.setImageResource(R.mipmap.stop); // 更新播放按钮图标
-            }
+            Intent intent = new Intent(MainActivity.this, MusicPlayActivity.class);
+            intent.putExtra("position", position); // 传递位置
+            startActivity(intent); // 启动播放活动
         });
 
         nextIv.setOnClickListener(this);
@@ -132,11 +138,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String path = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DATA));
                 long durationMillis = cursor.getLong(cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)); // 时长
 
-                // 转换为 mm:ss 格式
-                String duration = convertMillisToTimeFormat(durationMillis);
-
                 if (path != null) {
-                    LocalMusicBean bean = new LocalMusicBean(String.valueOf(mDatas.size() + 1), song, singer, "", duration, path);
+                    LocalMusicBean bean = new LocalMusicBean(String.valueOf(mDatas.size() + 1), song, singer, "", convertMillisToTimeFormat(durationMillis), path);
                     mDatas.add(bean);
                 }
             }

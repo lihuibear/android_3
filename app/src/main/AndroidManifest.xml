@@ -10,6 +10,7 @@
 
     <!-- 存储权限 -->
     <!-- 适配 Android 13 及以上版本 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
@@ -28,7 +29,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Stage_3">
-
+        <activity android:name=".MusicPlayActivity">
+            <!-- 可选的 intent filter，如果需要 -->
+            <!-- <intent-filter>
+                <action android:name="com.example.stage_3.MUSIC_PLAY" />
+            </intent-filter> -->
+        </activity>
         <activity
             android:name=".MainActivity"
             android:exported="true">
